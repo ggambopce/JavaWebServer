@@ -7,6 +7,10 @@ import java.net.Socket;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static util.MyLogger.log;
 
+/**
+ * 클라이언트가 전달한 HTTP 요청을 처리하는 스레드
+ * 동시에 욧청한 수 만큼 별도의 스레드에서 수행된다.
+ */
 public class HttpRequestHandler implements Runnable{
     private final Socket socket;
 

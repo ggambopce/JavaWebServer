@@ -4,18 +4,12 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static util.MyLogger.log;
 
 public class HttpServer {
-    // <h1>Hello WebServer!!</h2>
-    private final int port;
 
-    public HttpServer(int port) {
-        this.port = port;
-    }
 
     public void start() throws IOException {
         int port = 8080;
@@ -32,26 +26,49 @@ public class HttpServer {
 
     private void process(Socket socket) throws IOException {
         try(socket;
-            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), UTF_8));
-            PrintWriter writer = new PrintWriter(socket.getOutputStream(), false, UTF_8)) {
+            // 1.소켓에서 들어오는 데이터를 문자열로 읽기위해 사용하는 스트림 구성
+            BufferedReader reader = new BufferedReader( // 버퍼링 처리후 readLine()으로 라인단위로 읽어옴
+                    new InputStreamReader(              // 입력스트림을 문자스트림으로 변환
+                            socket.getInputStream(),    // 보내진 바이트데이터를 읽는 입력스트림
+                            UTF_8
+                    ));
+            // 2.소캣 출력 스트림을 문자 기반으로 감싸서 출력하는 기능을 제공하는 객체 생성
+            PrintWriter writer = new PrintWriter(
+                    socket.getOutputStream(),       // Socket 객체에서 출력스트림을 가져옴
+                    false,                          // autoFlush 여부, flush() 직접호출해서 모아서 전송
+                    UTF_8                           // 텍스트를 인코딩해서 바이트 스트림에 전달
+            )) {
 
+            // 3. HTTP 요청 읽어서 String으로 반환
             String requestString = requestToString(reader);
-            // 파비콘 무시
+
+            // favicon.ico 파비콘 요청 무시
             if (requestString.contains("/favicon.ico")) {
                 log("favicon 요청");
                 return;
             }
 
+            // HTTP 요청 정보 확인
             log("HTTP 요청 정보 출력");
             System.out.println(requestString);
 
+            // 서버처리시간
             log("Http 응답 생성중...");
             sleep(5000);
+
+            // 4. HTTP 응답 메세지 생성
             responseToClient(writer);
             log("HTTP 응답 전달 완료");
         }
     }
 
+    /* HTTP 요청 양식 예시
+    GET /index.html HTTP/1.1
+    Host: localhost:8080
+    User-Agent: curl/7.68.0
+    Accept: *
+    <빈 줄>
+     */
     private static String requestToString(BufferedReader reader) throws IOException {
         StringBuilder sb = new StringBuilder();
         String line;
@@ -59,29 +76,36 @@ public class HttpServer {
             if (line.isEmpty()) {
                 break;
             }
-            sb.append(line).append("\n");
+            sb.append(line).append("\n");           // 헤더의 끝
         }
         return sb.toString();
     }
 
+    /* HTTP 응답 양식 예시
+    HTTP/1.1 200 OK\r\n
+    Content-Type: text/html
+    Content-Length: <바이트 수>\r\n
+    \r\n
+    <본문>
+    */
     private void responseToClient(PrintWriter writer) {
         // 웹 브라우저에 전달하는 내용
         String body = "<h1>Hello HttpServer</h1>";
-        int length = body.getBytes(UTF_8).length;
+        int length = body.getBytes(UTF_8).length;   // 브라우저가 본문이 어디까지인지 확인하기 위함
 
+        // Http 공식 양식
         StringBuilder sb = new StringBuilder();
-        sb.append("HTTP/1.1 200 OK\r\n");
-        sb.append("Content-Type: text/html\r\n");
-        sb.append("Content-Length: ").append(length).append("\r\n");
-        sb.append("\r\n");  //header, body 구분 라인
+        sb.append("HTTP/1.1 200 OK\r\n");           // 응답 상태 라인
+        sb.append("Content-Type: text/html\r\n");   // 본문 형식
+        sb.append("Content-Length: ").append(length).append("\r\n");    // 본문 길이
+        sb.append("\r\n");                          //header, body 구분 라인
         sb.append(body);
 
         log("HTTP 응답 정보 출력");
         System.out.println(sb);
 
         writer.println(sb);
-        writer.flush();
-
+        writer.flush();                 // 버퍼에 저장된 데이터를 강제로 출력스트림으로 밀어냄
     }
 
     private static void sleep(int millis){

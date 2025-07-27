@@ -1,0 +1,6 @@
+docker run -d \
+  --name db-container \
+  -e MYSQL_ROOT_PASSWORD=1234 \
+  -e MYSQL_DATABASE=plantdb \
+  -p 3306:3306 \
+  mysql:8.0

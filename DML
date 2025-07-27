@@ -1,0 +1,13 @@
+CREATE TABLE plant (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+);
+
+CREATE TABLE plant_data (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    plant_id INT NOT NULL,
+    temperature DOUBLE,
+    humidity DOUBLE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (plant_id) REFERENCES plant(id)
+);

@@ -1,3 +1,7 @@
+import plantApplication.Plant;
+import plantApplication.PlantData;
+import plantApplication.PlantDataRepository;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -14,6 +18,7 @@ import static util.MyLogger.log;
  */
 public class HttpRequestHandler implements Runnable{
     private final Socket socket;
+    private final PlantDataRepository repository = new PlantDataRepository();
 
     public HttpRequestHandler(Socket socket) {
         this.socket = socket;
@@ -58,9 +63,9 @@ public class HttpRequestHandler implements Runnable{
 
             log("Http 응답 생성중...");
             if (requestString.startsWith("GET /plant/1")) {
-                plant1(writer);
+                respondPlantData(writer, 1, "행복이");
             } else if (requestString.startsWith("GET /plant/2")) {
-                plant2(writer);
+                respondPlantData(writer, 2, "사랑이");
             } else if (requestString.startsWith("GET /search")) {
                 search(writer, requestString);
             } else if (requestString.startsWith("GET / ")) {
@@ -71,6 +76,25 @@ public class HttpRequestHandler implements Runnable{
 
             log("HTTP 응답 전달 완료");
         }
+    }
+    private void respondPlantData(PrintWriter writer, int plantId, String name) {
+
+        PlantData data = repository.findLatestByPlantId(plantId);
+
+        StringBuilder html = new StringBuilder("<h1>" + name + "</h1>");
+        if (data != null) {
+            html.append("<p>온도: ").append(data.getTemperature()).append("℃</p>")
+                    .append("<p>습도: ").append(data.getHumidity()).append("%</p>")
+                    .append("<p>시각: ").append(data.getCreatedAt()).append("</p>");
+        } else {
+            html.append("<p>측정 데이터가 없습니다.</p>");
+        }
+
+        writer.println("HTTP/1.1 200 OK");
+        writer.println("Content-Type: text/html; charset=UTF-8");
+        writer.println();
+        writer.println(html);
+        writer.flush();
     }
 
     private void home(PrintWriter writer) {
@@ -86,20 +110,7 @@ public class HttpRequestHandler implements Runnable{
         writer.println("</ul>");
         writer.flush();
     }
-    private void plant1(PrintWriter writer) {
-        writer.println("HTTP/1.1 200 OK");
-        writer.println("Content-Type: text/html; charset=UTF-8");
-        writer.println();
-        writer.println("<h1>행복이</h1>");
-        writer.flush();
-    }
-    private void plant2(PrintWriter writer) {
-        writer.println("HTTP/1.1 200 OK");
-        writer.println("Content-Type: text/html; charset=UTF-8");
-        writer.println();
-        writer.println("<h1>사랑이</h1>");
-        writer.flush();
-    }
+
     private void notFound(PrintWriter writer) {
         writer.println("HTTP/1.1 404 Not Found");
         writer.println("Content-Type: text/html; charset=UTF-8");

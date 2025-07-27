@@ -55,14 +55,45 @@ public class HttpRequestHandler implements Runnable{
             log("HTTP 요청 정보 출력");
             System.out.println(requestString);
 
-            // 서버처리시간
             log("Http 응답 생성중...");
-            sleep(5000);
+            if (requestString.startsWith("GET /plant/1")) {
+                plant1(writer);
+            } else if (requestString.startsWith("GET /plant/2")) {
+                plant2(writer);
+            } else if (requestString.startsWith("GET /serach")) {
+                search(writer);
+            } else if (requestString.startsWith("GET / ")) {
+                home(writer);
+            } else {
+                notFound(writer);
+            }
 
             // 4. HTTP 응답 메세지 생성
             responseToClient(writer);
             log("HTTP 응답 전달 완료");
         }
+    }
+
+    private void home(PrintWriter writer) {
+        writer.println("HTTP/1.1 200 OK");
+        writer.println("Content-Type: text/html; charset=UTF-8");
+        writer.println();
+        writer.println("<h1>나의 반려 식물 목록</h1>");
+        writer.println("<ul>");
+        writer.println("<li><a href='/plant/1>행복이</a></li>");
+        writer.println("<li><a href='/plant/1>사랑이</a></li>");
+        writer.println("<li><a href='/search?q=hello'>검색</a></li>");
+        writer.println("</ul>");
+        writer.flush();
+    }
+    private void plant1(PrintWriter writer) {
+    }
+    private void plant2(PrintWriter writer) {
+
+    }
+    private void search(PrintWriter writer) {
+    }
+    private void notFound(PrintWriter writer) {
     }
 
     /* HTTP 요청 양식 예시

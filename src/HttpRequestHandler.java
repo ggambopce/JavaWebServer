@@ -113,7 +113,7 @@ public class HttpRequestHandler implements Runnable{
         int startIndex = requestString.indexOf("q=");
         int endIndex = requestString.indexOf(" ", startIndex + 2);
         String query = requestString.substring(startIndex + 2, endIndex);
-        String decode = URLDecoder.decode(query, UTF_8);
+        String decode = URLDecoder.decode(query, UTF_8);    // Url은 아스키 기준이라 한글 인코딩필요
 
         writer.println("HTTP/1.1 200 OK");
         writer.println("Content-Type: text/html; charset=UTF-8");

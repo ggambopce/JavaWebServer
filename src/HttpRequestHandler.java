@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.URLDecoder;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static util.MyLogger.log;
@@ -60,40 +61,69 @@ public class HttpRequestHandler implements Runnable{
                 plant1(writer);
             } else if (requestString.startsWith("GET /plant/2")) {
                 plant2(writer);
-            } else if (requestString.startsWith("GET /serach")) {
-                search(writer);
+            } else if (requestString.startsWith("GET /search")) {
+                search(writer, requestString);
             } else if (requestString.startsWith("GET / ")) {
                 home(writer);
             } else {
                 notFound(writer);
             }
 
-            // 4. HTTP 응답 메세지 생성
-            responseToClient(writer);
             log("HTTP 응답 전달 완료");
         }
     }
 
     private void home(PrintWriter writer) {
+        // 원칙적으로 Content-Length 계산해야 한다.
         writer.println("HTTP/1.1 200 OK");
         writer.println("Content-Type: text/html; charset=UTF-8");
         writer.println();
         writer.println("<h1>나의 반려 식물 목록</h1>");
         writer.println("<ul>");
-        writer.println("<li><a href='/plant/1>행복이</a></li>");
-        writer.println("<li><a href='/plant/1>사랑이</a></li>");
-        writer.println("<li><a href='/search?q=hello'>검색</a></li>");
+        writer.println("<li><a href='/plant/1'>행복이</a></li>");
+        writer.println("<li><a href='/plant/2'>사랑이</a></li>");
+        writer.println("<li><a href='/search?q=사랑이'>검색</a></li>");
         writer.println("</ul>");
         writer.flush();
     }
     private void plant1(PrintWriter writer) {
+        writer.println("HTTP/1.1 200 OK");
+        writer.println("Content-Type: text/html; charset=UTF-8");
+        writer.println();
+        writer.println("<h1>행복이</h1>");
+        writer.flush();
     }
     private void plant2(PrintWriter writer) {
-
-    }
-    private void search(PrintWriter writer) {
+        writer.println("HTTP/1.1 200 OK");
+        writer.println("Content-Type: text/html; charset=UTF-8");
+        writer.println();
+        writer.println("<h1>사랑이</h1>");
+        writer.flush();
     }
     private void notFound(PrintWriter writer) {
+        writer.println("HTTP/1.1 404 Not Found");
+        writer.println("Content-Type: text/html; charset=UTF-8");
+        writer.println();
+        writer.println("<h1>404 페이지를 찾을 수 없습니다.</h1>");
+        writer.flush();
+    }
+    // "/search?q=사랑이"
+    // GET /search?q=hello HTTP/1.1
+    private void search(PrintWriter writer,String requestString ) {
+        int startIndex = requestString.indexOf("q=");
+        int endIndex = requestString.indexOf(" ", startIndex + 2);
+        String query = requestString.substring(startIndex + 2, endIndex);
+        String decode = URLDecoder.decode(query, UTF_8);
+
+        writer.println("HTTP/1.1 200 OK");
+        writer.println("Content-Type: text/html; charset=UTF-8");
+        writer.println();
+        writer.println("<h1>Search</h1>");
+        writer.println("<ul>");
+        writer.println("<li>query: " + query + "</li>");
+        writer.println("<li>decode: " + decode + "</li>");
+        writer.println("</ul>");
+        writer.flush();
     }
 
     /* HTTP 요청 양식 예시

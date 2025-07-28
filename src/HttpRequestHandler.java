@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.URLDecoder;
+import java.util.List;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static util.MyLogger.log;
@@ -66,8 +67,8 @@ public class HttpRequestHandler implements Runnable{
                 respondPlantData(writer, 1, "행복이");
             } else if (requestString.startsWith("GET /plant/2")) {
                 respondPlantData(writer, 2, "사랑이");
-            } else if (requestString.startsWith("GET /search")) {
-                search(writer, requestString);
+            } else if (requestString.startsWith("GET /plants")) {
+                plantList(writer, requestString);
             } else if (requestString.startsWith("GET / ")) {
                 home(writer);
             } else {
@@ -106,7 +107,7 @@ public class HttpRequestHandler implements Runnable{
         writer.println("<ul>");
         writer.println("<li><a href='/plant/1'>행복이</a></li>");
         writer.println("<li><a href='/plant/2'>사랑이</a></li>");
-        writer.println("<li><a href='/search?q=사랑이'>검색</a></li>");
+        writer.println("<li><a href='/plants'>리스트</a></li>");
         writer.println("</ul>");
         writer.flush();
     }
@@ -118,22 +119,29 @@ public class HttpRequestHandler implements Runnable{
         writer.println("<h1>404 페이지를 찾을 수 없습니다.</h1>");
         writer.flush();
     }
-    // "/search?q=사랑이"
-    // GET /search?q=hello HTTP/1.1
-    private void search(PrintWriter writer,String requestString ) {
-        int startIndex = requestString.indexOf("q=");
-        int endIndex = requestString.indexOf(" ", startIndex + 2);
-        String query = requestString.substring(startIndex + 2, endIndex);
-        String decode = URLDecoder.decode(query, UTF_8);    // Url은 아스키 기준이라 한글 인코딩필요
+
+    private void plantList(PrintWriter writer,String requestString ) {
+        List<PlantData> dataList = repository.findAllLatest(); // 전체 장치 데이터
+        StringBuilder html = new StringBuilder();
+        html.append("<h1>전체 식물 실시간 센서 데이터</h1>");
+        html.append("<table border='1'>");
+        html.append("<tr><th>장치 ID</th><th>온도(℃)</th><th>습도(%)</th><th>측정시각</th></tr>");
+
+        for (PlantData data : dataList) {
+            html.append("<tr>")
+                    .append("<td>").append(data.getDeviceId()).append("</td>")
+                    .append("<td>").append(data.getTemperature()).append("</td>")
+                    .append("<td>").append(data.getHumidity()).append("</td>")
+                    .append("<td>").append(data.getCreatedAt()).append("</td>")
+                    .append("</tr>");
+        }
+
+        html.append("</table>");
 
         writer.println("HTTP/1.1 200 OK");
         writer.println("Content-Type: text/html; charset=UTF-8");
         writer.println();
-        writer.println("<h1>Search</h1>");
-        writer.println("<ul>");
-        writer.println("<li>query: " + query + "</li>");
-        writer.println("<li>decode: " + decode + "</li>");
-        writer.println("</ul>");
+        writer.println(html);
         writer.flush();
     }
 

@@ -54,16 +54,27 @@ public class HttpRequestHandler implements Runnable{
             if (requestLine == null) return;
 
 
-            // WebSocket 분기 추가
-            if (requestLine.toLowerCase().contains("upgrade: websocket")) {
-                log("🔌 WebSocket 연결 요청 수신");
-                WebSocketHandler.handleHandshakeAndData(socket, reader, socket.getOutputStream());
-                return; // 더 이상 HTTP 응답 처리 안 함
-            }
-
             // 2. 나머지 요청을 위해 헤더 전체 파싱
             String headers = requestToString(reader);
-            log("HTTP 요청 정보 출력:\n" + requestLine + "\n" + headers);
+            log("📥 [요청 전체 수신됨]");
+            log("🔎 HTTP 요청 정보 출력:\n" + requestLine + "\n" + headers);
+
+            // 요청 디버깅 로그 추가
+            if (requestLine != null && requestLine.startsWith("GET /ws")) {
+                log("🧭 WebSocket 요청임을 감지");
+                if (headers.toLowerCase().contains("upgrade: websocket")) {
+                    log("🧬 WebSocket Upgrade 헤더 포함됨");
+                } else {
+                    log("⚠️ Upgrade: websocket 헤더 없음");
+                }
+            }
+
+            // WebSocket 분기 추가
+            if (requestLine.startsWith("GET /ws") && headers.toLowerCase().contains("upgrade: websocket")) {
+                log("🔌 WebSocket 연결 요청 수신: " + requestLine);
+                WebSocketHandler.handle(socket, requestLine, headers);
+                return;
+            }
 
             // favicon.ico 파비콘 요청 무시
             if (requestLine.contains("/favicon.ico")) {

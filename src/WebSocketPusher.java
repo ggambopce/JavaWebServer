@@ -37,6 +37,9 @@ public class WebSocketPusher {
             }
             json.append("]");
 
+            String message = json.toString();
+            log("📤 WebSocket 전송 데이터: " + message);
+
             sendMessage(json.toString());
 
         } catch (Exception e) {

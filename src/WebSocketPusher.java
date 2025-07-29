@@ -20,9 +20,14 @@ public class WebSocketPusher {
 
     public void send() {
         try {
-            if (socket.isClosed()) return;
+            log("✅ send() 진입");
+            if (!socket.isConnected() || socket.isClosed()) {
+                log("⛔ 소켓 연결 안됨 또는 닫힘");
+                return;
+            }
 
             List<PlantData> dataList = repo.findAllLatest();
+            log("📦 데이터 개수: " + dataList.size());
 
             StringBuilder json = new StringBuilder("[");
             for (int i = 0; i < dataList.size(); i++) {

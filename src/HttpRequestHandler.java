@@ -35,72 +35,52 @@ public class HttpRequestHandler implements Runnable{
     }
 
     private void process() throws Exception {
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(socket.getInputStream(), UTF_8));
 
-        try(socket;
-            // 1.소켓에서 들어오는 데이터를 문자열로 읽기위해 사용하는 스트림 구성
-            BufferedReader reader = new BufferedReader( // 버퍼링 처리후 readLine()으로 라인단위로 읽어옴
-                    new InputStreamReader(              // 입력스트림을 문자스트림으로 변환
-                            socket.getInputStream(),    // 보내진 바이트데이터를 읽는 입력스트림
-                            UTF_8
-                    ));
-            // 2.소캣 출력 스트림을 문자 기반으로 감싸서 출력하는 기능을 제공하는 객체 생성
-            PrintWriter writer = new PrintWriter(
-                    socket.getOutputStream(),       // Socket 객체에서 출력스트림을 가져옴
-                    false,                          // autoFlush 여부, flush() 직접호출해서 모아서 전송
-                    UTF_8                           // 텍스트를 인코딩해서 바이트 스트림에 전달
-            )) {
+        PrintWriter writer = new PrintWriter(
+                socket.getOutputStream(), false, UTF_8);
 
-            String requestLine = reader.readLine();
-            if (requestLine == null) return;
+        String requestLine = reader.readLine();
+        if (requestLine == null) return;
 
+        String headers = requestToString(reader);
+        log("\uD83D\uDCE5 [요청 전체 수신됨]");
+        log("\uD83D\uDD0E HTTP 요청 정보 출력:\n" + requestLine + "\n" + headers);
 
-            // 2. 나머지 요청을 위해 헤더 전체 파싱
-            String headers = requestToString(reader);
-            log("📥 [요청 전체 수신됨]");
-            log("🔎 HTTP 요청 정보 출력:\n" + requestLine + "\n" + headers);
-
-            // 요청 디버깅 로그 추가
-            if (requestLine != null && requestLine.startsWith("GET /ws")) {
-                log("🧭 WebSocket 요청임을 감지");
-                if (headers.toLowerCase().contains("upgrade: websocket")) {
-                    log("🧬 WebSocket Upgrade 헤더 포함됨");
-                } else {
-                    log("⚠️ Upgrade: websocket 헤더 없음");
-                }
-            }
-
-            // WebSocket 분기 추가
-            if (requestLine.startsWith("GET /ws") && headers.toLowerCase().contains("upgrade: websocket")) {
-                log("🔌 WebSocket 연결 요청 수신: " + requestLine);
-                WebSocketHandler.handle(socket, requestLine, headers);
-                return;
-            }
-
-            // favicon.ico 파비콘 요청 무시
-            if (requestLine.contains("/favicon.ico")) {
-                log("favicon 요청");
-                return;
-            }
-
-            // HTTP 요청 정보 확인
-            log("HTTP 요청 정보 출력");
-            System.out.println(requestLine);
-
-            log("Http 응답 생성중...");
-            if (requestLine.startsWith("GET /plant/1")) {
-                respondPlantData(writer, 1, "행복이");
-            } else if (requestLine.startsWith("GET /plant/2")) {
-                respondPlantData(writer, 2, "사랑이");
-            } else if (requestLine.startsWith("GET /plants")) {
-                plantList(writer, requestLine);
-            } else if (requestLine.startsWith("GET /")) {
-                home(writer);
-            } else {
-                notFound(writer);
-            }
-
-            log("HTTP 응답 전달 완료");
+        if (requestLine.startsWith("GET /ws") && headers.toLowerCase().contains("upgrade: websocket")) {
+            log("\uD83D\uDD0C WebSocket 연결 요청 수신: " + requestLine);
+            new Thread(() -> WebSocketHandler.handle(socket, requestLine, headers)).start();
+            return;
         }
+
+        if (requestLine.contains("/favicon.ico")) {
+            log("\uD83C\uDF1F favicon.ico 요청 감지됨");
+            writer.println("HTTP/1.1 204 No Content");
+            writer.println("Content-Type: image/x-icon");
+            writer.println("Connection: close");
+            writer.println();
+            writer.flush();
+            return;
+        }
+
+        log("HTTP 요청 정보 출력");
+        System.out.println(requestLine);
+
+        log("Http 응답 생성중...");
+        if (requestLine.startsWith("GET /plant/1")) {
+            respondPlantData(writer, 1, "행복이");
+        } else if (requestLine.startsWith("GET /plant/2")) {
+            respondPlantData(writer, 2, "사랑이");
+        } else if (requestLine.startsWith("GET /plants")) {
+            plantList(writer);
+        } else if (requestLine.startsWith("GET /")) {
+            home(writer);
+        } else {
+            notFound(writer);
+        }
+
+        log("HTTP 응답 전달 완료");
     }
     private void respondPlantData(PrintWriter writer, int plantId, String name) {
 
@@ -144,7 +124,7 @@ public class HttpRequestHandler implements Runnable{
         writer.flush();
     }
 
-    private void plantList(PrintWriter writer,String requestString ) {
+    private void plantList(PrintWriter writer) {
         List<PlantData> dataList = repository.findAllLatest(); // 전체 장치 데이터
         StringBuilder html = new StringBuilder();
         html.append("<h1>전체 식물 실시간 센서 데이터</h1>");
@@ -166,21 +146,31 @@ public class HttpRequestHandler implements Runnable{
         html.append("<script>");
         html.append("const socket = new WebSocket('ws://localhost:12345/ws');");
 
-        html.append("socket.onmessage = (event) => {");
-        html.append("  const data = JSON.parse(event.data);");
-        html.append("  const table = document.getElementById('data-table');");
-        html.append("  table.innerHTML = '<tr><th>장치 ID</th><th>온도(℃)</th><th>습도(%)</th><th>측정시각</th></tr>';");
+        html.append("socket.onopen = () => {");
+        html.append("  console.log('WebSocket 연결됨');");
+        html.append("};");
 
-        html.append("  data.forEach(row => {");
-        html.append("    const tr = document.createElement('tr');");
-        html.append("    tr.innerHTML = `<td>${row.deviceId}</td><td>${row.temp}</td><td>${row.hum}</td><td>${row.timestamp}</td>`;");
-        html.append("    table.appendChild(tr);");
-        html.append("  });");
+        html.append("socket.onmessage = (event) => {");
+        html.append("  try {");
+        html.append("    const data = JSON.parse(event.data);");
+        html.append("    const table = document.getElementById('data-table');");
+        html.append("    table.innerHTML = '<tr><th>장치 ID</th><th>온도(℃)</th><th>습도(%)</th><th>측정시각</th></tr>';");
+
+        html.append("    data.forEach(row => {");
+        html.append("      const tr = document.createElement('tr');");
+        html.append("      tr.innerHTML = `<td>${row.deviceId}</td><td>${row.temp}</td><td>${row.hum}</td><td>${row.timestamp}</td>`;");
+        html.append("      table.appendChild(tr);");
+        html.append("    });");
+        html.append("  } catch(e) {");
+        html.append("    console.warn('JSON 아님:', event.data);");
+        html.append("  }");
         html.append("};");
 
         html.append("socket.onerror = (e) => console.error('WebSocket error:', e);");
         html.append("socket.onclose = () => console.log('WebSocket closed');");
+
         html.append("</script>");
+
 
 
         html.append("</body>");

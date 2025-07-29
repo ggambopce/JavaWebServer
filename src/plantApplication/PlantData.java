@@ -30,4 +30,14 @@ public class PlantData {
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
+
+    @Override
+    public String toString() {
+        return "PlantData{" +
+                "deviceId=" + deviceId +
+                ", temperature=" + temperature +
+                ", humidity=" + humidity +
+                ", createdAt=" + createdAt +
+                '}';
+    }
 }

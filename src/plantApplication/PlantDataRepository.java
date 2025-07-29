@@ -33,7 +33,7 @@ public class PlantDataRepository {
 
     public List<PlantData> findAllLatest() {
         List<PlantData> result = new ArrayList<>();
-        String sql = "SELECT device_id, temperature, humidity, timestamp FROM plant_data_latest ORDER BY device_id";
+        String sql = "SELECT * FROM plant_data_latest;";
         try (
                 Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
                 PreparedStatement stmt = conn.prepareStatement(sql);

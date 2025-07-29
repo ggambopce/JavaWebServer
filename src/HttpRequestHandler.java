@@ -34,7 +34,8 @@ public class HttpRequestHandler implements Runnable{
         }
     }
 
-    private void process() throws IOException {
+    private void process() throws Exception {
+
         try(socket;
             // 1.소켓에서 들어오는 데이터를 문자열로 읽기위해 사용하는 스트림 구성
             BufferedReader reader = new BufferedReader( // 버퍼링 처리후 readLine()으로 라인단위로 읽어옴
@@ -49,27 +50,39 @@ public class HttpRequestHandler implements Runnable{
                     UTF_8                           // 텍스트를 인코딩해서 바이트 스트림에 전달
             )) {
 
-            // 3. HTTP 요청 읽어서 String으로 반환
-            String requestString = requestToString(reader);
+            String requestLine = reader.readLine();
+            if (requestLine == null) return;
+
+
+            // WebSocket 분기 추가
+            if (requestLine.toLowerCase().contains("upgrade: websocket")) {
+                log("🔌 WebSocket 연결 요청 수신");
+                WebSocketHandler.handleHandshakeAndData(socket, reader, socket.getOutputStream());
+                return; // 더 이상 HTTP 응답 처리 안 함
+            }
+
+            // 2. 나머지 요청을 위해 헤더 전체 파싱
+            String headers = requestToString(reader);
+            log("HTTP 요청 정보 출력:\n" + requestLine + "\n" + headers);
 
             // favicon.ico 파비콘 요청 무시
-            if (requestString.contains("/favicon.ico")) {
+            if (requestLine.contains("/favicon.ico")) {
                 log("favicon 요청");
                 return;
             }
 
             // HTTP 요청 정보 확인
             log("HTTP 요청 정보 출력");
-            System.out.println(requestString);
+            System.out.println(requestLine);
 
             log("Http 응답 생성중...");
-            if (requestString.startsWith("GET /plant/1")) {
+            if (requestLine.startsWith("GET /plant/1")) {
                 respondPlantData(writer, 1, "행복이");
-            } else if (requestString.startsWith("GET /plant/2")) {
+            } else if (requestLine.startsWith("GET /plant/2")) {
                 respondPlantData(writer, 2, "사랑이");
-            } else if (requestString.startsWith("GET /plants")) {
-                plantList(writer, requestString);
-            } else if (requestString.startsWith("GET / ")) {
+            } else if (requestLine.startsWith("GET /plants")) {
+                plantList(writer, requestLine);
+            } else if (requestLine.startsWith("GET /")) {
                 home(writer);
             } else {
                 notFound(writer);
@@ -124,7 +137,7 @@ public class HttpRequestHandler implements Runnable{
         List<PlantData> dataList = repository.findAllLatest(); // 전체 장치 데이터
         StringBuilder html = new StringBuilder();
         html.append("<h1>전체 식물 실시간 센서 데이터</h1>");
-        html.append("<table border='1'>");
+        html.append("<table border='1' id='data-table'>");
         html.append("<tr><th>장치 ID</th><th>온도(℃)</th><th>습도(%)</th><th>측정시각</th></tr>");
 
         for (PlantData data : dataList) {
@@ -137,6 +150,30 @@ public class HttpRequestHandler implements Runnable{
         }
 
         html.append("</table>");
+
+        // WebSocket JS 코드 삽입
+        html.append("<script>");
+        html.append("const socket = new WebSocket('ws://localhost:12345/ws');");
+
+        html.append("socket.onmessage = (event) => {");
+        html.append("  const data = JSON.parse(event.data);");
+        html.append("  const table = document.getElementById('data-table');");
+        html.append("  table.innerHTML = '<tr><th>장치 ID</th><th>온도(℃)</th><th>습도(%)</th><th>측정시각</th></tr>';");
+
+        html.append("  data.forEach(row => {");
+        html.append("    const tr = document.createElement('tr');");
+        html.append("    tr.innerHTML = `<td>${row.deviceId}</td><td>${row.temp}</td><td>${row.hum}</td><td>${row.timestamp}</td>`;");
+        html.append("    table.appendChild(tr);");
+        html.append("  });");
+        html.append("};");
+
+        html.append("socket.onerror = (e) => console.error('WebSocket error:', e);");
+        html.append("socket.onclose = () => console.log('WebSocket closed');");
+        html.append("</script>");
+
+
+        html.append("</body>");
+        html.append("</html>");
 
         writer.println("HTTP/1.1 200 OK");
         writer.println("Content-Type: text/html; charset=UTF-8");
